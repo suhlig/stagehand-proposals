@@ -33,7 +33,7 @@ Chosen option: "Webhooks as a new device category in both directions", because o
 
 Concretely this means:
 
-1. A place that holds the endpoint configuration: for incoming webhooks the path Stagehand listens on, the HTTP method it accepts and a secret to verify callers; for outgoing webhooks the target URL, HTTP method, headers and authentication.
+1. A place that holds the endpoint configuration: for incoming webhooks the path Stagehand listens on, the HTTP method it accepts (POST) and a secret to verify callers; for outgoing webhooks the target URL, HTTP method (POST by default), headers and authentication.
 2. A new device of type Webhook that
 	a) can serve as a trigger: Stagehand exposes an HTTP endpoint, external systems call it, and Stagehand reacts to the request, optionally with a condition on the payload (receiving);
 	b) can serve as a step: Stagehand sends an HTTP request to a URL (sending).
@@ -71,6 +71,12 @@ The body of an outgoing webhook (and the expected payload of a trigger) is model
 * **Structured builder in the UI**: form fields (key/value pairs, dropdowns for known fields) that generate the JSON. Easier for non-technical users and less error-prone, but more UI work and less flexible.
 
 Both are planned, starting with the plain text editor with placeholders – it fits the "effort stays low" driver and the `curl`-testability pro. The structured builder is a later enhancement. Placeholders can appear in the URL and headers too, not only in the body.
+
+## HTTP Methods
+
+The step (outgoing) lets the user choose the HTTP method, with POST as the default.
+
+The trigger (incoming) accepts POST, the standard for webhook delivery. The trigger answers with a meaningful status code: `200`/`202` on success, `401`/`403` when the caller's secret is missing or wrong, `404` for an unknown path, and `429` when rate-limited.
 
 ## Pros and Cons of the Options
 
@@ -116,7 +122,7 @@ gRPC is an RPC framework over HTTP/2 that uses Protocol Buffers and a shared, ty
 ## Open Questions
 
 * **TLS**: for incoming webhooks, is TLS terminated by a reverse proxy in front of Stagehand, or should Stagehand serve HTTPS itself? For outgoing webhooks, HTTPS is the default where the target supports it.
-* **Retries and idempotency**: should a failed outgoing step be retried, and how often? Incoming webhooks are often delivered more than once by the caller – triggers must handle duplicate deliveries idempotently.
+* **Retries and idempotency**: should a failed outgoing step be retried, and how often? An `Idempotency-Key` header (where the target supports it) makes retries safe. Incoming webhooks are often delivered more than once by the caller – triggers must handle duplicate deliveries idempotently.
 * **Timeouts and size limits**: outgoing calls need a timeout; incoming bodies need a maximum size.
 * **Response to the caller**: what does a trigger return – `200 OK` immediately, or a body that the caller can use?
 * **Rate limiting and abuse protection**: an exposed endpoint can be hit by anyone on the network; should requests be rate-limited?
